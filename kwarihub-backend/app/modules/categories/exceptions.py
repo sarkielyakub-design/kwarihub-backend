@@ -1,0 +1,1 @@
+"""KWARIHUB - categories - exceptions.py"""

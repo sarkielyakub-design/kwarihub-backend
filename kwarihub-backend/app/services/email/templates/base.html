@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>{{ title }}</title>
+<style>
+body{
+    margin:0;
+    padding:0;
+    background:#f4f6f8;
+    font-family:Arial,Helvetica,sans-serif;
+}
+.container{
+    width:600px;
+    margin:30px auto;
+    background:#ffffff;
+    border-radius:10px;
+    overflow:hidden;
+}
+.header{
+    background:#0F52BA;
+    color:#ffffff;
+    text-align:center;
+    padding:25px;
+}
+.content{
+    padding:30px;
+    color:#333;
+    line-height:1.7;
+}
+.button{
+    display:inline-block;
+    background:#0F52BA;
+    color:#fff !important;
+    padding:12px 28px;
+    border-radius:6px;
+    text-decoration:none;
+}
+.footer{
+    background:#f1f1f1;
+    padding:20px;
+    text-align:center;
+    color:#777;
+    font-size:13px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="header">
+<h2>KWARIHUB Marketplace</h2>
+</div>
+
+<div class="content">
+
+{% block content %}
+
+{% endblock %}
+
+</div>
+
+<div class="footer">
+
+© {{ year }} KWARIHUB
+
+</div>
+
+</div>
+
+</body>
+
+</html>

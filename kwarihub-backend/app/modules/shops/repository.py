@@ -1,0 +1,1 @@
+"""KWARIHUB - shops - repository.py"""
