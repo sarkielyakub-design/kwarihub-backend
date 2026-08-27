@@ -1,4 +1,5 @@
 """KWARIHUB - orders - router.py"""
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,19 +10,26 @@ from app.modules.order_items.repository import OrderItemRepository
 from app.modules.orders.repository import OrderRepository
 from app.modules.orders.schemas import (
     CheckoutRequest,
-    OrderResponse,
     OrderListResponse,
+    OrderResponse,
     UpdateOrderStatusRequest,
 )
 from app.modules.orders.service import OrderService
+from app.modules.payments.monnify import MonnifyClient
+from app.modules.payments.repository import PaymentRepository
 from app.modules.product_variants.repository import ProductVariantRepository
 from app.modules.users.models import User
+
 
 router = APIRouter(
     prefix="/orders",
     tags=["Orders"],
 )
 
+
+# ============================================================
+# SERVICE
+# ============================================================
 
 def get_service(
     db: AsyncSession = Depends(get_db),
@@ -31,8 +39,14 @@ def get_service(
         order_item_repo=OrderItemRepository(db),
         cart_repo=CartRepository(db),
         variant_repo=ProductVariantRepository(db),
+        payment_repo=PaymentRepository(db),
+        monnify=MonnifyClient(),
     )
 
+
+# ============================================================
+# CHECKOUT
+# ============================================================
 
 @router.post(
     "/checkout",
@@ -45,10 +59,14 @@ async def checkout(
     service: OrderService = Depends(get_service),
 ):
     return await service.checkout(
-        current_user.id,
+        current_user,
         request,
     )
 
+
+# ============================================================
+# MY ORDERS
+# ============================================================
 
 @router.get(
     "",
@@ -62,6 +80,10 @@ async def my_orders(
         current_user.id,
     )
 
+
+# ============================================================
+# GET ORDER
+# ============================================================
 
 @router.get(
     "/{order_uuid}",
@@ -77,6 +99,10 @@ async def get_order(
         current_user.id,
     )
 
+
+# ============================================================
+# UPDATE ORDER STATUS
+# ============================================================
 
 @router.patch(
     "/{order_uuid}/status",

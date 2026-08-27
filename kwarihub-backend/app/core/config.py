@@ -34,10 +34,10 @@ class Settings(BaseSettings):
     STORAGE_PATH: str = "storage"
     PRODUCT_IMAGE_PATH: str = "storage/products"
     AVATAR_PATH: str = "storage/avatars"
-     # ==========================
-# Email
-# ==========================
 
+    # ==========================
+    # Email
+    # ==========================
     MAIL_HOST: str = "smtp.gmail.com"
     MAIL_PORT: int = 587
     MAIL_USERNAME: str
@@ -47,21 +47,25 @@ class Settings(BaseSettings):
 
     MAIL_TLS: bool = True
     MAIL_SSL: bool = False
+
     # ==========================
-    # Parallax Payment Gateway
+    # Celery
     # ==========================
-    PARALLAX_BASE_URL: str
-    PARALLAX_API_KEY: str
-    PARALLAX_SECRET_KEY: str
-    # ==========================
-# Celery
-# ==========================
     CELERY_BROKER_URL: str = "redis://127.0.0.1:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://127.0.0.1:6379/0"
+
+    # ==========================
+    # Monnify Payment Gateway
+    # ==========================
+    MONNIFY_BASE_URL: str = "https://sandbox.monnify.com"
+    MONNIFY_API_KEY: str
+    MONNIFY_SECRET_KEY: str
+    MONNIFY_CONTRACT_CODE: str
+
     # ==========================
     # Payment
     # ==========================
-    PAYMENT_PROVIDER: str = "PARALLAX"
+    PAYMENT_PROVIDER: str = "MONNIFY"
     PAYMENT_EXPIRY_MINUTES: int = 30
     CURRENCY: str = "NGN"
 
@@ -78,6 +82,9 @@ class Settings(BaseSettings):
     REDIS_DB: int = 0
     REDIS_PASSWORD: Optional[str] = None
 
+    # ==========================
+    # Settings
+    # ==========================
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

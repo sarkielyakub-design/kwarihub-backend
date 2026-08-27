@@ -1,19 +1,20 @@
-from fastapi import APIRouter, Depends, Request
+"""KWARIHUB - payments - router.py"""
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
 from app.modules.auth.dependencies import get_current_user
-from app.modules.orders.repository import OrderRepository
+from app.modules.payments.monnify import MonnifyClient
 from app.modules.payments.repository import PaymentRepository
 from app.modules.payments.schemas import (
-    BankResponse,
     InitializePaymentRequest,
-    RegeneratePaymentRequest,
-    PaymentResponse,
-    PaymentStatusResponse,
+    InitializePaymentResponse,
+    VerifyPaymentResponse,
 )
 from app.modules.payments.service import PaymentService
 from app.modules.users.models import User
+
 
 router = APIRouter(
     prefix="/payments",
@@ -21,77 +22,72 @@ router = APIRouter(
 )
 
 
-def get_service(
+# ============================================================
+# SERVICE
+# ============================================================
+
+def get_payment_service(
     db: AsyncSession = Depends(get_db),
 ):
     return PaymentService(
+        monnify=MonnifyClient(),
         payment_repo=PaymentRepository(db),
-        order_repo=OrderRepository(db),
     )
 
 
-@router.get(
-    "/banks",
-    response_model=list[BankResponse],
-)
-async def get_banks(
-    service: PaymentService = Depends(get_service),
-):
-    return await service.get_banks()
-
+# ============================================================
+# INITIALIZE PAYMENT
+# ============================================================
 
 @router.post(
     "/initialize",
-    response_model=PaymentResponse,
+    response_model=InitializePaymentResponse,
+    status_code=status.HTTP_200_OK,
 )
 async def initialize_payment(
     request: InitializePaymentRequest,
-    current_user: User = Depends(get_current_user),
-    service: PaymentService = Depends(get_service),
+    service: PaymentService = Depends(
+        get_payment_service
+    ),
 ):
-    return await service.initialize(
-        current_user.id,
-        request,
-    )
+    try:
+        return await service.initialize(
+            amount=request.amount,
+            customer_name=request.customer_name,
+            customer_email=request.customer_email,
+            payment_reference=request.payment_reference,
+            payment_description=request.payment_description,
+            redirect_url=request.redirect_url,
+        )
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        )
 
 
-@router.post(
-    "/regenerate",
-    response_model=PaymentResponse,
-)
-async def regenerate_payment(
-    request: RegeneratePaymentRequest,
-    current_user: User = Depends(get_current_user),
-    service: PaymentService = Depends(get_service),
-):
-    return await service.regenerate(
-        current_user.id,
-        request,
-    )
-
+# ============================================================
+# VERIFY PAYMENT
+# ============================================================
 
 @router.get(
-    "/{reference}",
-    response_model=PaymentStatusResponse,
+    "/verify/{payment_reference}",
+    response_model=VerifyPaymentResponse,
 )
-async def payment_status(
-    reference: str,
-    service: PaymentService = Depends(get_service),
+async def verify_payment(
+    payment_reference: str,
+    service: PaymentService = Depends(
+        get_payment_service
+    ),
 ):
-    return await service.status(
-        reference,
-    )
+    try:
+        return await service.verify(
+            payment_reference
+        )
 
-
-@router.post("/webhook/parallax")
-async def parallax_webhook(
-    request: Request,
-):
-    payload = await request.json()
-
-    # We'll verify the signature and process
-    # the payment in the next step.
-
-    return {
-        "success": True,
-    }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        )

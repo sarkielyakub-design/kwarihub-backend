@@ -1,57 +1,50 @@
-from datetime import datetime
 from decimal import Decimal
-from typing import List
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
-class BankResponse(BaseModel):
-    code: str
-    name: str
-
+# ============================================================
+# INITIALIZE PAYMENT
+# ============================================================
 
 class InitializePaymentRequest(BaseModel):
-    order_uuid: str
-    preferred_bank: str
+    amount: Decimal
+    customer_name: str
+    customer_email: EmailStr
+    payment_reference: str
+    payment_description: str = "KWARIHUB Order Payment"
+    redirect_url: str
 
 
-class RegeneratePaymentRequest(BaseModel):
-    order_uuid: str
-    preferred_bank: str
-
-
-class PaymentResponse(BaseModel):
+class InitializePaymentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    uuid: str
-    reference: str
-
-    bank_code: str
-    bank_name: str
-
-    account_name: str
-    account_number: str
-
+    payment_reference: str
+    checkout_url: str
+    transaction_reference: str
     amount: Decimal
     currency: str
 
-    status: str
 
-    expires_at: datetime
+# ============================================================
+# VERIFY PAYMENT
+# ============================================================
 
-
-class PaymentStatusResponse(BaseModel):
+class VerifyPaymentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    reference: str
-    status: str
-    amount: Decimal
-  
+    payment_uuid: str
+    order_uuid: str
+    order_number: str
 
-paid_at: Optional[datetime] = None
+    payment_reference: str
+    transaction_reference: Optional[str] = None
 
+    amount: Optional[Decimal] = None
+    currency: Optional[str] = None
 
-class MessageResponse(BaseModel):
-    success: bool
-    message: str
+    payment_status: str
+    payment_method: Optional[str] = None
+
+    order_status: str

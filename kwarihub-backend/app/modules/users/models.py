@@ -23,12 +23,13 @@ if TYPE_CHECKING:
     from app.modules.wishlist.models import Wishlist
     from app.modules.payments.models import Payment
 
+
 class User(BaseModel):
     __tablename__ = "users"
 
-    # ==========================
-    # Basic Information
-    # ==========================
+    # ============================================================
+    # BASIC INFORMATION
+    # ============================================================
 
     first_name: Mapped[str] = mapped_column(
         String(100),
@@ -64,9 +65,9 @@ class User(BaseModel):
         nullable=True,
     )
 
-    # ==========================
-    # Account Status
-    # ==========================
+    # ============================================================
+    # ACCOUNT STATUS
+    # ============================================================
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,
@@ -88,9 +89,9 @@ class User(BaseModel):
         nullable=True,
     )
 
-    # ==========================
-    # Role
-    # ==========================
+    # ============================================================
+    # ROLE
+    # ============================================================
 
     role_id: Mapped[int] = mapped_column(
         ForeignKey("roles.id"),
@@ -102,9 +103,9 @@ class User(BaseModel):
         back_populates="users",
     )
 
-    # ==========================
-    # Authentication
-    # ==========================
+    # ============================================================
+    # AUTHENTICATION
+    # ============================================================
 
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
         "RefreshToken",
@@ -112,18 +113,18 @@ class User(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    # ==========================
-    # Products
-    # ==========================
+    # ============================================================
+    # PRODUCTS
+    # ============================================================
 
     products: Mapped[list["Product"]] = relationship(
         "Product",
         back_populates="seller",
     )
 
-    # ==========================
-    # Wishlist
-    # ==========================
+    # ============================================================
+    # WISHLIST
+    # ============================================================
 
     wishlist_items: Mapped[list["Wishlist"]] = relationship(
         "Wishlist",
@@ -131,9 +132,9 @@ class User(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    # ==========================
-    # Cart
-    # ==========================
+    # ============================================================
+    # CART
+    # ============================================================
 
     cart_items: Mapped[list["CartItem"]] = relationship(
         "CartItem",
@@ -141,27 +142,27 @@ class User(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    # ==========================
-    # Orders
-    # ==========================
+    # ============================================================
+    # ORDERS
+    # ============================================================
 
     orders: Mapped[list["Order"]] = relationship(
         "Order",
         back_populates="buyer",
     )
 
-    # ==========================
-    # Reviews
-    # ==========================
+    # ============================================================
+    # REVIEWS
+    # ============================================================
 
     reviews: Mapped[list["Review"]] = relationship(
         "Review",
         back_populates="buyer",
     )
 
-    # ==========================
-    # Notifications
-    # ==========================
+    # ============================================================
+    # NOTIFICATIONS
+    # ============================================================
 
     notifications: Mapped[list["Notification"]] = relationship(
         "Notification",
@@ -169,9 +170,9 @@ class User(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    # ==========================
-    # Wallet
-    # ==========================
+    # ============================================================
+    # WALLET
+    # ============================================================
 
     wallet: Mapped["Wallet"] = relationship(
         "Wallet",
@@ -179,18 +180,18 @@ class User(BaseModel):
         uselist=False,
     )
 
-    # ==========================
-    # Withdrawals
-    # ==========================
+    # ============================================================
+    # WITHDRAWALS
+    # ============================================================
 
     withdrawals: Mapped[list["Withdrawal"]] = relationship(
         "Withdrawal",
         back_populates="user",
     )
 
-    # ==========================
-    # Bank Accounts
-    # ==========================
+    # ============================================================
+    # BANK ACCOUNTS
+    # ============================================================
 
     bank_accounts: Mapped[list["BankAccount"]] = relationship(
         "BankAccount",
@@ -198,9 +199,15 @@ class User(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    # ==========================
-    # Payment
-    # ==========================
+    # ============================================================
+    # PAYMENT
+    #
+    # Payment.user uses:
+    #
+    # back_populates="payment"
+    #
+    # Therefore this side MUST be named "payment".
+    # ============================================================
 
     payment: Mapped[Optional["Payment"]] = relationship(
         "Payment",

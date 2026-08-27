@@ -53,6 +53,7 @@ from app.modules.audit_logs.router import (
     router as audit_logs_router,
 )
 from app.modules.otp.router import router as otp_router
+from app.modules.payments.router import router as payments_router
 
 
 
@@ -117,4 +118,7 @@ api_router.include_router(audit_logs_router)
 api_router.include_router(otp_router)
 api_router.include_router(
     dashboard_router,
+)
+api_router.include_router(
+    payments_router
 )
