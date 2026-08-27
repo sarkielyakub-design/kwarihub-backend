@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base_model import BaseModel
 
+
 if TYPE_CHECKING:
     from app.modules.users.models import User
     from app.modules.product_variants.models import ProductVariant
@@ -21,23 +22,45 @@ class CartItem(BaseModel):
         ),
     )
 
+    # ================================================================
+    # USER
+    # ================================================================
+
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey(
+            "users.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
         index=True,
     )
 
+    # ================================================================
+    # PRODUCT VARIANT
+    # ================================================================
+
     variant_id: Mapped[int] = mapped_column(
-        ForeignKey("product_variants.id", ondelete="CASCADE"),
+        ForeignKey(
+            "product_variants.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
         index=True,
     )
+
+    # ================================================================
+    # QUANTITY
+    # ================================================================
 
     quantity: Mapped[int] = mapped_column(
         Integer,
         default=1,
         nullable=False,
     )
+
+    # ================================================================
+    # RELATIONSHIPS
+    # ================================================================
 
     user: Mapped["User"] = relationship(
         "User",

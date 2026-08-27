@@ -8,8 +8,29 @@ from app.modules.products.models import Product
 
 
 class CartRepository:
-    def __init__(self, db: AsyncSession):
+    def __init__(
+        self,
+        db: AsyncSession,
+    ):
         self.db = db
+
+    # ================================================================
+    # COMMON LOAD OPTIONS
+    # ================================================================
+
+    @staticmethod
+    def _load_options():
+        return (
+            selectinload(
+                CartItem.variant,
+            )
+            .selectinload(
+                ProductVariant.product,
+            )
+            .selectinload(
+                Product.images,
+            )
+        )
 
     # ================================================================
     # CREATE
@@ -29,11 +50,6 @@ class CartRepository:
 
     # ================================================================
     # GET BY UUID
-    #
-    # CartItem
-    #   -> Variant
-    #       -> Product
-    #           -> Images
     # ================================================================
 
     async def get_by_uuid(
@@ -43,15 +59,7 @@ class CartRepository:
         result = await self.db.execute(
             select(CartItem)
             .options(
-                selectinload(
-                    CartItem.variant,
-                )
-                .selectinload(
-                    ProductVariant.product,
-                )
-                .selectinload(
-                    Product.images,
-                ),
+                self._load_options()
             )
             .where(
                 CartItem.uuid == uuid,
@@ -72,15 +80,7 @@ class CartRepository:
         result = await self.db.execute(
             select(CartItem)
             .options(
-                selectinload(
-                    CartItem.variant,
-                )
-                .selectinload(
-                    ProductVariant.product,
-                )
-                .selectinload(
-                    Product.images,
-                ),
+                self._load_options()
             )
             .where(
                 CartItem.user_id == user_id,
@@ -94,34 +94,39 @@ class CartRepository:
         return result.scalars().all()
 
     # ================================================================
-    # GET USER VARIANT
+    # GET USER + VARIANT
     #
-    # Used when adding an item to cart.
+    # IMPORTANT:
+    # include_deleted=True allows us to find soft-deleted rows.
+    # This is necessary because the database UNIQUE constraint still
+    # sees those rows.
     # ================================================================
 
     async def get_user_variant(
         self,
         user_id: int,
         variant_id: int,
+        include_deleted: bool = False,
     ):
+        conditions = [
+            CartItem.user_id == user_id,
+            CartItem.variant_id == variant_id,
+        ]
+
+        if not include_deleted:
+            conditions.append(
+                CartItem.is_deleted == False
+            )
+
         result = await self.db.execute(
             select(CartItem)
             .options(
-                selectinload(
-                    CartItem.variant,
-                )
-                .selectinload(
-                    ProductVariant.product,
-                )
-                .selectinload(
-                    Product.images,
-                ),
+                self._load_options()
             )
             .where(
-                CartItem.user_id == user_id,
-                CartItem.variant_id == variant_id,
-                CartItem.is_deleted == False,
+                *conditions
             )
+            .limit(1)
         )
 
         return result.scalar_one_or_none()
@@ -173,3 +178,10 @@ class CartRepository:
             item.is_deleted = True
 
         await self.db.commit()
+
+    # ================================================================
+    # ROLLBACK
+    # ================================================================
+
+    async def rollback(self):
+        await self.db.rollback()
