@@ -1,0 +1,1 @@
+"""KWARIHUB - wishlist - constants.py"""

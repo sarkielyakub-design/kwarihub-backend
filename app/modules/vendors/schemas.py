@@ -1,0 +1,1 @@
+"""KWARIHUB - vendors - schemas.py"""

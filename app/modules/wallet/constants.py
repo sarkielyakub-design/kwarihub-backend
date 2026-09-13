@@ -1,0 +1,1 @@
+"""KWARIHUB - wallet - constants.py"""
