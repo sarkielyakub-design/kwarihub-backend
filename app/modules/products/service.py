@@ -87,17 +87,48 @@ class ProductService:
         )
 
         return product
+# ================================================================
+# GET ALL PRODUCTS
+# ================================================================
 
-    # ================================================================
-    # GET ALL PRODUCTS
-    # ================================================================
+async def get_all(self):
+    return await self.repo.get_all()
 
-    async def get_all(self):
-        return await cache.remember(
-            key=CacheKeys.PRODUCTS,
-            callback=self.repo.get_all,
-            ttl=300,
+
+# ================================================================
+# GET PRODUCT BY UUID
+# ================================================================
+
+async def get_by_uuid(
+    self,
+    uuid: str,
+):
+    uuid = uuid.strip()
+
+    product = await self.repo.get_by_uuid(
+        uuid,
+    )
+
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found.",
         )
+
+    return product
+
+
+# ================================================================
+# MY PRODUCTS
+# ================================================================
+
+async def my_products(
+    self,
+    seller_id: int,
+):
+    return await self.repo.get_by_seller(
+        seller_id,
+    )
 
     # ================================================================
     # GET PRODUCT BY UUID
@@ -253,17 +284,13 @@ class ProductService:
         }
 
     # ================================================================
-    # MY PRODUCTS
-    # ================================================================
+# MY PRODUCTS
+# ================================================================
 
-    async def my_products(
-        self,
-        seller_id: int,
-    ):
-        return await cache.remember(
-            key=f"seller:{seller_id}:products",
-            callback=lambda: self.repo.get_by_seller(
-                seller_id,
-            ),
-            ttl=120,
-        )
+async def my_products(
+    self,
+    seller_id: int,
+):
+    return await self.repo.get_by_seller(
+        seller_id,
+    )
