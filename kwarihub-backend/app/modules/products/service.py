@@ -87,62 +87,22 @@ class ProductService:
         )
 
         return product
-# ================================================================
-# GET ALL PRODUCTS
-# ================================================================
 
-async def get_all(self):
-    return await self.repo.get_all()
+    # ================================================================
+    # GET ALL PRODUCTS
+    #
+    # IMPORTANT:
+    # Do NOT cache SQLAlchemy ORM objects.
+    # ================================================================
 
-
-# ================================================================
-# GET PRODUCT BY UUID
-# ================================================================
-
-async def get_by_uuid(
-    self,
-    uuid: str,
-):
-    uuid = uuid.strip()
-
-    product = await self.repo.get_by_uuid(
-        uuid,
-    )
-
-    if not product:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Product not found.",
-        )
-
-    return product
-
-
-# ================================================================
-# MY PRODUCTS
-# ================================================================
-
-async def my_products(
-    self,
-    seller_id: int,
-):
-    return await self.repo.get_by_seller(
-        seller_id,
-    )
+    async def get_all(self):
+        return await self.repo.get_all()
 
     # ================================================================
     # GET PRODUCT BY UUID
     #
     # IMPORTANT:
-    # Do NOT cache this SQLAlchemy object.
-    #
-    # The previous cache implementation was returning a serialized
-    # string instead of a Product ORM object, which caused:
-    #
-    # ValidationError:
-    # Input should be a valid dictionary or object to extract fields
-    #
-    # We query the repository directly here.
+    # Do NOT cache SQLAlchemy ORM objects.
     # ================================================================
 
     async def get_by_uuid(
@@ -162,6 +122,21 @@ async def my_products(
             )
 
         return product
+
+    # ================================================================
+    # MY PRODUCTS
+    #
+    # IMPORTANT:
+    # Do NOT cache SQLAlchemy ORM objects.
+    # ================================================================
+
+    async def my_products(
+        self,
+        seller_id: int,
+    ):
+        return await self.repo.get_by_seller(
+            seller_id,
+        )
 
     # ================================================================
     # UPDATE PRODUCT
@@ -282,15 +257,3 @@ async def my_products(
             "success": True,
             "message": "Product deleted successfully.",
         }
-
-    # ================================================================
-# MY PRODUCTS
-# ================================================================
-
-async def my_products(
-    self,
-    seller_id: int,
-):
-    return await self.repo.get_by_seller(
-        seller_id,
-    )
