@@ -19,7 +19,6 @@ from app.modules.wallet.schemas import (
 
 
 class WalletService:
-
     def __init__(
         self,
         repo: WalletRepository,
@@ -30,11 +29,7 @@ class WalletService:
         self,
         user_id: int,
     ):
-        return await cache.remember(
-            key=CacheKeys.WALLET.format(user_id),
-            callback=lambda: self._get_wallet(user_id),
-            ttl=30,
-        )
+        return await self._get_wallet(user_id)
 
     async def _get_wallet(
         self,
@@ -58,7 +53,7 @@ class WalletService:
         self,
         user_id: int,
     ):
-        wallet = await self.get_wallet(user_id)
+        wallet = await self._get_wallet(user_id)
 
         return await self.repo.get_transactions(
             wallet.id,
@@ -69,7 +64,7 @@ class WalletService:
         user_id: int,
         uuid: str,
     ):
-        wallet = await self.get_wallet(user_id)
+        wallet = await self._get_wallet(user_id)
 
         transaction = await self.repo.get_transaction(uuid)
 
