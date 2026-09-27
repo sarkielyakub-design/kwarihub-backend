@@ -11,3 +11,6 @@ __pycache__/
 
 uploads/*
 storage/*
+dump.rdb
+
+docker/
