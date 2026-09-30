@@ -3,14 +3,21 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
 
 from app.database.base_model import BaseModel
-from app.modules.roles.association import role_permissions
-from app.modules.permissions.models import Permission
+from app.modules.roles.association import (
+    role_permissions,
+    user_roles,
+)
 
-# Runtime import
-from app.modules.users.models import User
+if TYPE_CHECKING:
+    from app.modules.permissions.models import Permission
+    from app.modules.users.models import User
 
 
 class Role(BaseModel):
@@ -22,15 +29,45 @@ class Role(BaseModel):
         nullable=False,
     )
 
-    description: Mapped[str] = mapped_column(
-        String(255),
+    slug: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        index=True,
         nullable=False,
     )
+
+    description: Mapped[str] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    is_system: Mapped[bool] = mapped_column(
+        default=False,
+    )
+
+    # ---------------------------------------------------------
+    # Existing primary-role relationship
+    # ---------------------------------------------------------
 
     users: Mapped[list["User"]] = relationship(
         "User",
         back_populates="role",
+        foreign_keys="User.role_id",
     )
+
+    # ---------------------------------------------------------
+    # MULTI-ROLE relationship
+    # ---------------------------------------------------------
+
+    assigned_users: Mapped[list["User"]] = relationship(
+        "User",
+        secondary=user_roles,
+        back_populates="roles",
+    )
+
+    # ---------------------------------------------------------
+    # Permissions
+    # ---------------------------------------------------------
 
     permissions: Mapped[list["Permission"]] = relationship(
         "Permission",

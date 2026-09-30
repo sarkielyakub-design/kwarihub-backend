@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+from app.modules.roles.association import user_roles
 from app.database.base_model import BaseModel
 
 
@@ -214,3 +214,12 @@ class User(BaseModel):
         back_populates="user",
         uselist=False,
     )
+    # ==========================================================
+# MULTI-ROLE ACCESS
+# ==========================================================
+
+roles: Mapped[list["Role"]] = relationship(
+    "Role",
+    secondary=user_roles,
+    back_populates="assigned_users",
+)

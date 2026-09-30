@@ -3,11 +3,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
 
 from app.database.base_model import BaseModel
-from app.modules.roles.association import role_permissions
-
+from app.modules.roles.association import (
+    role_permissions,
+)
 
 if TYPE_CHECKING:
     from app.modules.roles.models import Role
