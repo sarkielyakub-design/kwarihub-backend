@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.modules.roles.association import user_roles
+
 from app.database.base_model import BaseModel
+from app.modules.roles.association import user_roles
 
 
 if TYPE_CHECKING:
@@ -90,7 +91,10 @@ class User(BaseModel):
     )
 
     # ============================================================
-    # ROLE
+    # PRIMARY / LEGACY ROLE
+    #
+    # Keep this for compatibility with the existing users table
+    # and existing parts of the application.
     # ============================================================
 
     role_id: Mapped[int] = mapped_column(
@@ -101,6 +105,25 @@ class User(BaseModel):
     role: Mapped["Role"] = relationship(
         "Role",
         back_populates="users",
+        foreign_keys=[role_id],
+    )
+
+    # ============================================================
+    # MULTI-ROLE ACCESS
+    #
+    # A single user can have:
+    #
+    # Buyer
+    # Vendor
+    # Admin
+    #
+    # at the same time.
+    # ============================================================
+
+    roles: Mapped[list["Role"]] = relationship(
+        "Role",
+        secondary=user_roles,
+        back_populates="assigned_users",
     )
 
     # ============================================================
@@ -206,7 +229,7 @@ class User(BaseModel):
     #
     # back_populates="payment"
     #
-    # Therefore this side MUST be named "payment".
+    # Therefore this side is named "payment".
     # ============================================================
 
     payment: Mapped[Optional["Payment"]] = relationship(
@@ -214,12 +237,3 @@ class User(BaseModel):
         back_populates="user",
         uselist=False,
     )
-    # ==========================================================
-# MULTI-ROLE ACCESS
-# ==========================================================
-
-roles: Mapped[list["Role"]] = relationship(
-    "Role",
-    secondary=user_roles,
-    back_populates="assigned_users",
-)

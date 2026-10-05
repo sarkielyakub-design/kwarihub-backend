@@ -3,11 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import String
-from sqlalchemy.orm import (
-    Mapped,
-    mapped_column,
-    relationship,
-)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base_model import BaseModel
 from app.modules.roles.association import (
@@ -36,17 +32,18 @@ class Role(BaseModel):
         nullable=False,
     )
 
-    description: Mapped[str] = mapped_column(
+    description: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
     )
 
     is_system: Mapped[bool] = mapped_column(
         default=False,
+        nullable=False,
     )
 
     # ---------------------------------------------------------
-    # Existing primary-role relationship
+    # Legacy/default role relationship
     # ---------------------------------------------------------
 
     users: Mapped[list["User"]] = relationship(
