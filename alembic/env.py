@@ -9,6 +9,8 @@ from app.database.base_model import Base
 # Import models
 from app.modules.users.models import User
 from app.modules.roles.models import Role
+from app.modules.permissions.models import Permission
+from app.modules.vendors.models import Vendor
 from app.modules.auth.models import RefreshToken
 from app.modules.categories.models import Category
 from app.modules.products.models import Product
@@ -28,7 +30,9 @@ from app.modules.bank_accounts.models import BankAccount
 from app.modules.settings.models import MarketplaceSettings
 from app.modules.audit_logs.models import AuditLog
 
+
 config = context.config
+
 
 # Convert async URL to sync URL for Alembic
 sync_database_url = settings.DATABASE_URL.replace(
@@ -38,8 +42,10 @@ sync_database_url = settings.DATABASE_URL.replace(
 
 config.set_main_option("sqlalchemy.url", sync_database_url)
 
+
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
 
 target_metadata = Base.metadata
 

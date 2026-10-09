@@ -19,7 +19,7 @@ class RoleRepository:
     async def get_by_name(
         self,
         name: str,
-    ):
+    ) -> Role | None:
         return await self.db.scalar(
             select(Role).where(
                 func.lower(Role.name) == name.lower(),
@@ -33,16 +33,11 @@ class RoleRepository:
     async def get_by_slug(
         self,
         slug: str,
-    ):
-        """
-        Compatibility method.
-
-        The Role model currently uses `name`,
-        not `slug`.
-        """
-
-        return await self.get_by_name(
-            slug,
+    ) -> Role | None:
+        return await self.db.scalar(
+            select(Role).where(
+                func.lower(Role.slug) == slug.lower(),
+            )
         )
 
     # ==========================
@@ -52,7 +47,7 @@ class RoleRepository:
     async def get_by_id(
         self,
         role_id: int,
-    ):
+    ) -> Role | None:
         return await self.db.scalar(
             select(Role).where(
                 Role.id == role_id,
@@ -63,11 +58,11 @@ class RoleRepository:
     # Get All
     # ==========================
 
-    async def get_all(self):
+    async def get_all(self) -> list[Role]:
         result = await self.db.execute(
             select(Role).order_by(
                 Role.name.asc(),
             )
         )
 
-        return result.scalars().all()
+        return list(result.scalars().all())

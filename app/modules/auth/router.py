@@ -2,11 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
+
 from app.modules.auth.dependencies import get_current_user
+
 from app.modules.auth.repository import (
     AuthRepository,
     RefreshTokenRepository,
 )
+
 from app.modules.auth.schemas import (
     ChangePasswordRequest,
     ChangePasswordResponse,
@@ -21,8 +24,11 @@ from app.modules.auth.schemas import (
     TokenResponse,
     UserResponse,
 )
+
 from app.modules.auth.service import AuthService
+
 from app.modules.roles.repository import RoleRepository
+
 from app.modules.users.models import User
 
 
@@ -32,9 +38,9 @@ router = APIRouter(
 )
 
 
-# ==========================
+# ==========================================================
 # Register
-# ==========================
+# ==========================================================
 
 @router.post(
     "/register",
@@ -44,15 +50,45 @@ async def register(
     request: RegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Register a new KwariHub account.
+
+    Supported account types:
+
+    buyer:
+        Buyer role only.
+
+    vendor:
+        Buyer + Vendor roles.
+
+    Every account starts with Buyer access because a vendor
+    should also be able to shop on KwariHub.
+    """
+
+    # ------------------------------------------------------
+    # Repositories
+    # ------------------------------------------------------
+
     auth_repo = AuthRepository(db)
+
     refresh_repo = RefreshTokenRepository(db)
+
+    role_repo = RoleRepository(db)
+
+    # ------------------------------------------------------
+    # Auth service
+    # ------------------------------------------------------
 
     service = AuthService(
         auth_repo=auth_repo,
         refresh_repo=refresh_repo,
     )
 
-    role_repo = RoleRepository(db)
+    # ------------------------------------------------------
+    # Get Buyer role
+    #
+    # Every KwariHub account receives Buyer role.
+    # ------------------------------------------------------
 
     buyer_role = await role_repo.get_by_slug(
         "buyer",
@@ -64,22 +100,51 @@ async def register(
             detail="Buyer role is not configured.",
         )
 
+    # ------------------------------------------------------
+    # Get Vendor role when requested
+    # ------------------------------------------------------
+
+    vendor_role = None
+
+    if request.account_type == "vendor":
+
+        vendor_role = await role_repo.get_by_slug(
+            "vendor",
+        )
+
+        if not vendor_role:
+            raise HTTPException(
+                status_code=500,
+                detail="Vendor role is not configured.",
+            )
+
+    # ------------------------------------------------------
+    # Register account
+    # ------------------------------------------------------
+
     try:
+
         return await service.register(
-            request,
-            role_id=buyer_role.id,
+            data=request,
+            buyer_role_id=buyer_role.id,
+            vendor_role_id=(
+                vendor_role.id
+                if vendor_role
+                else None
+            ),
         )
 
     except ValueError as e:
+
         raise HTTPException(
             status_code=400,
             detail=str(e),
         )
 
 
-# ==========================
+# ==========================================================
 # Login
-# ==========================
+# ==========================================================
 
 @router.post(
     "/login",
@@ -100,9 +165,9 @@ async def login(
     )
 
 
-# ==========================
+# ==========================================================
 # Refresh Token
-# ==========================
+# ==========================================================
 
 @router.post(
     "/refresh",
@@ -122,9 +187,9 @@ async def refresh(
     )
 
 
-# ==========================
+# ==========================================================
 # Current User
-# ==========================
+# ==========================================================
 
 @router.get(
     "/me",
@@ -138,9 +203,9 @@ async def me(
     return current_user
 
 
-# ==========================
+# ==========================================================
 # Logout
-# ==========================
+# ==========================================================
 
 @router.post(
     "/logout",
@@ -160,9 +225,9 @@ async def logout(
     )
 
 
-# ==========================
+# ==========================================================
 # Forgot Password
-# ==========================
+# ==========================================================
 
 @router.post(
     "/forgot-password",
@@ -182,9 +247,9 @@ async def forgot_password(
     )
 
 
-# ==========================
+# ==========================================================
 # Reset Password
-# ==========================
+# ==========================================================
 
 @router.post(
     "/reset-password",
@@ -206,9 +271,9 @@ async def reset_password(
     )
 
 
-# ==========================
+# ==========================================================
 # Change Password
-# ==========================
+# ==========================================================
 
 @router.post(
     "/change-password",

@@ -6,10 +6,7 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base_model import BaseModel
-from app.modules.roles.association import (
-    role_permissions,
-    user_roles,
-)
+from app.modules.roles.association import role_permissions, user_roles
 
 if TYPE_CHECKING:
     from app.modules.permissions.models import Permission
@@ -42,29 +39,19 @@ class Role(BaseModel):
         nullable=False,
     )
 
-    # ---------------------------------------------------------
-    # Legacy/default role relationship
-    # ---------------------------------------------------------
-
+    # Legacy primary role relationship
     users: Mapped[list["User"]] = relationship(
         "User",
         back_populates="role",
         foreign_keys="User.role_id",
     )
 
-    # ---------------------------------------------------------
-    # MULTI-ROLE relationship
-    # ---------------------------------------------------------
-
+    # Multi-role relationship
     assigned_users: Mapped[list["User"]] = relationship(
         "User",
         secondary=user_roles,
         back_populates="roles",
     )
-
-    # ---------------------------------------------------------
-    # Permissions
-    # ---------------------------------------------------------
 
     permissions: Mapped[list["Permission"]] = relationship(
         "Permission",

@@ -9,14 +9,20 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
+
 from app.modules.auth.models import RefreshToken
 from app.modules.auth.repository import (
     AuthRepository,
     RefreshTokenRepository,
 )
+
 from app.modules.auth.schemas import RegisterRequest
+
 from app.modules.otp.repository import OTPRepository
 from app.modules.otp.service import OTPService
+
+from app.modules.roles.association import user_roles
+
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 
@@ -31,23 +37,49 @@ class AuthService:
         self.repo = auth_repo
         self.refresh_repo = refresh_repo
 
-    # ==========================
+    # ==========================================================
     # Register
-    # ==========================
+    # ==========================================================
 
     async def register(
         self,
         data: RegisterRequest,
-        role_id: int,
+        buyer_role_id: int,
+        vendor_role_id: int | None = None,
     ):
+        # ------------------------------------------------------
+        # Check email
+        # ------------------------------------------------------
+
         if await self.repo.get_by_email(data.email):
-            raise ValueError("Email already exists")
+            raise ValueError(
+                "Email already exists"
+            )
+
+        # ------------------------------------------------------
+        # Check username
+        # ------------------------------------------------------
 
         if await self.repo.get_by_username(data.username):
-            raise ValueError("Username already exists")
+            raise ValueError(
+                "Username already exists"
+            )
+
+        # ------------------------------------------------------
+        # Check phone
+        # ------------------------------------------------------
 
         if await self.repo.get_by_phone(data.phone):
-            raise ValueError("Phone number already exists")
+            raise ValueError(
+                "Phone number already exists"
+            )
+
+        # ------------------------------------------------------
+        # Create user
+        #
+        # role_id remains Buyer for backward compatibility.
+        # Additional roles are stored in user_roles.
+        # ------------------------------------------------------
 
         user = User(
             first_name=data.first_name,
@@ -55,16 +87,69 @@ class AuthService:
             username=data.username,
             email=data.email,
             phone=data.phone,
-            password_hash=hash_password(data.password),
-            role_id=role_id,
+            password_hash=hash_password(
+                data.password
+            ),
+            role_id=buyer_role_id,
             is_verified=False,
         )
 
+        # ------------------------------------------------------
+        # Save user
+        # ------------------------------------------------------
+
         user = await self.repo.create(user)
 
+        # ------------------------------------------------------
+        # Assign Buyer role
+        #
+        # Every KwariHub account is a Buyer by default.
+        # ------------------------------------------------------
+
+        await self.repo.db.execute(
+            user_roles.insert().values(
+                user_id=user.id,
+                role_id=buyer_role_id,
+            )
+        )
+
+        # ------------------------------------------------------
+        # Assign Vendor role
+        #
+        # Vendor registration gives the user both:
+        #
+        # Buyer
+        # Vendor
+        #
+        # This allows the same account to shop and sell.
+        # ------------------------------------------------------
+
+        if vendor_role_id is not None:
+
+            await self.repo.db.execute(
+                user_roles.insert().values(
+                    user_id=user.id,
+                    role_id=vendor_role_id,
+                )
+            )
+
+        # ------------------------------------------------------
+        # Commit role assignments
+        # ------------------------------------------------------
+
+        await self.repo.db.commit()
+
+        # ------------------------------------------------------
+        # Generate email verification OTP
+        # ------------------------------------------------------
+
         otp_service = OTPService(
-            repo=OTPRepository(self.repo.db),
-            user_repo=UserRepository(self.repo.db),
+            repo=OTPRepository(
+                self.repo.db
+            ),
+            user_repo=UserRepository(
+                self.repo.db
+            ),
         )
 
         await otp_service.generate(
@@ -74,16 +159,18 @@ class AuthService:
 
         return user
 
-    # ==========================
+    # ==========================================================
     # Login
-    # ==========================
+    # ==========================================================
 
     async def login(
         self,
         email: str,
         password: str,
     ):
-        user = await self.repo.get_by_email(email)
+        user = await self.repo.get_by_email(
+            email
+        )
 
         if not user:
             raise HTTPException(
@@ -123,12 +210,17 @@ class AuthService:
         refresh = RefreshToken(
             token=refresh_token,
             user_id=user.id,
-            expires_at=datetime.utcnow() + timedelta(days=30),
+            expires_at=(
+                datetime.utcnow()
+                + timedelta(days=30)
+            ),
             device_name="Unknown Device",
             ip_address=None,
         )
 
-        await self.refresh_repo.create(refresh)
+        await self.refresh_repo.create(
+            refresh
+        )
 
         return {
             "access_token": access_token,
@@ -137,16 +229,16 @@ class AuthService:
             "user": user,
         }
 
-    # ==========================
+    # ==========================================================
     # Refresh Token
-    # ==========================
+    # ==========================================================
 
     async def refresh(
         self,
         refresh_token: str,
     ):
         payload = decode_access_token(
-            refresh_token,
+            refresh_token
         )
 
         if not payload:
@@ -171,16 +263,16 @@ class AuthService:
             "token_type": "bearer",
         }
 
-    # ==========================
+    # ==========================================================
     # Logout
-    # ==========================
+    # ==========================================================
 
     async def logout(
         self,
         refresh_token: str,
     ):
         token = await self.refresh_repo.get_by_token(
-            refresh_token,
+            refresh_token
         )
 
         if not token:
@@ -189,22 +281,26 @@ class AuthService:
                 detail="Refresh token not found",
             )
 
-        await self.refresh_repo.revoke(token)
+        await self.refresh_repo.revoke(
+            token
+        )
 
         return {
             "success": True,
             "message": "Logged out successfully",
         }
 
-    # ==========================
+    # ==========================================================
     # Forgot Password
-    # ==========================
+    # ==========================================================
 
     async def forgot_password(
         self,
         email: str,
     ):
-        user = await self.repo.get_by_email(email)
+        user = await self.repo.get_by_email(
+            email
+        )
 
         if not user:
             raise HTTPException(
@@ -213,8 +309,12 @@ class AuthService:
             )
 
         otp_service = OTPService(
-            repo=OTPRepository(self.repo.db),
-            user_repo=UserRepository(self.repo.db),
+            repo=OTPRepository(
+                self.repo.db
+            ),
+            user_repo=UserRepository(
+                self.repo.db
+            ),
         )
 
         await otp_service.generate(
@@ -224,12 +324,15 @@ class AuthService:
 
         return {
             "success": True,
-            "message": "Password reset code has been sent to your email.",
+            "message": (
+                "Password reset code has been "
+                "sent to your email."
+            ),
         }
 
-    # ==========================
+    # ==========================================================
     # Reset Password
-    # ==========================
+    # ==========================================================
 
     async def reset_password(
         self,
@@ -237,7 +340,9 @@ class AuthService:
         otp: str,
         password: str,
     ):
-        user = await self.repo.get_by_email(email)
+        user = await self.repo.get_by_email(
+            email
+        )
 
         if not user:
             raise HTTPException(
@@ -246,13 +351,20 @@ class AuthService:
             )
 
         otp_service = OTPService(
-            repo=OTPRepository(self.repo.db),
-            user_repo=UserRepository(self.repo.db),
+            repo=OTPRepository(
+                self.repo.db
+            ),
+            user_repo=UserRepository(
+                self.repo.db
+            ),
         )
 
+        # ------------------------------------------------------
         # Verify password reset OTP.
-        # IMPORTANT:
-        # This should only validate and consume the OTP.
+        # This only validates and consumes the OTP.
+        # It does not verify the user's email.
+        # ------------------------------------------------------
+
         await otp_service.verify(
             user_id=user.id,
             code=otp,
@@ -261,21 +373,23 @@ class AuthService:
         )
 
         user.password_hash = hash_password(
-            password,
+            password
         )
 
         await UserRepository(
-            self.repo.db,
-        ).change_password(user)
+            self.repo.db
+        ).change_password(
+            user
+        )
 
         return {
             "success": True,
             "message": "Password reset successfully.",
         }
 
-    # ==========================
+    # ==========================================================
     # Change Password
-    # ==========================
+    # ==========================================================
 
     async def change_password(
         self,
@@ -298,16 +412,21 @@ class AuthService:
         ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="New password must be different from your current password.",
+                detail=(
+                    "New password must be different "
+                    "from your current password."
+                ),
             )
 
         user.password_hash = hash_password(
-            new_password,
+            new_password
         )
 
         await UserRepository(
-            self.repo.db,
-        ).change_password(user)
+            self.repo.db
+        ).change_password(
+            user
+        )
 
         return {
             "success": True,

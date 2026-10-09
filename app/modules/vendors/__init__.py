@@ -1,1 +1,5 @@
-"""KWARIHUB - vendors - __init__.py"""
+from app.modules.vendors.models import Vendor
+
+__all__ = [
+    "Vendor",
+]
