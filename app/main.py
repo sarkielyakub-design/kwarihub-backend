@@ -11,11 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.api.v1.api import api_router
 
-
-# ============================================================
-# REGISTER ALL SQLALCHEMY MODELS
-# ============================================================
-
+# Register SQLAlchemy models for Alembic discovery.
 import app.database.models  # noqa: F401
 
 
@@ -31,7 +27,7 @@ app = FastAPI(
 
 
 # ============================================================
-# PERSISTENT IMAGE STORAGE
+# STORAGE
 # ============================================================
 
 STORAGE_ROOT = Path(
@@ -56,8 +52,6 @@ ALLOWED_ORIGINS = [
     "https://www.kwarihub.com",
 ]
 
-# Optional additional origins can be configured in Railway:
-# CORS_ORIGINS=https://your-preview.vercel.app,https://example.com
 extra_origins = os.getenv("CORS_ORIGINS", "")
 
 ALLOWED_ORIGINS.extend(
@@ -66,9 +60,7 @@ ALLOWED_ORIGINS.extend(
     if origin.strip()
 )
 
-# Remove duplicates while preserving order.
 ALLOWED_ORIGINS = list(dict.fromkeys(ALLOWED_ORIGINS))
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -80,23 +72,7 @@ app.add_middleware(
 
 
 # ============================================================
-# PUBLIC STATIC FILES
-# ============================================================
-#
-# Local:
-#   STORAGE_ROOT=.
-#
-# Railway:
-#   Attach a persistent Volume mounted at /data
-#   STORAGE_ROOT=/data
-#
-# Example:
-#   /storage/products/example.webp
-#
-# Public URL:
-#   https://kwarihub-backend-production-ea77.up.railway.app/
-#       storage/products/example.webp
-#
+# STATIC FILES
 # ============================================================
 
 app.mount(
@@ -110,10 +86,7 @@ app.mount(
 # API ROUTES
 # ============================================================
 
-app.include_router(
-    api_router,
-    prefix="/api/v1",
-)
+app.include_router(api_router, prefix="/api/v1")
 
 
 # ============================================================
@@ -136,6 +109,36 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {
-        "status": "healthy",
-    }
+    return {"status": "healthy"}
+
+
+# ============================================================
+# STORAGE DIAGNOSTIC
+# ============================================================
+
+@app.get("/health/storage")
+async def storage_health():
+    try:
+        files = [
+            item.name
+            for item in PRODUCT_STORAGE_DIR.iterdir()
+            if item.is_file()
+        ]
+
+        return {
+            "storage_root": str(STORAGE_ROOT),
+            "product_storage_dir": str(PRODUCT_STORAGE_DIR),
+            "directory_exists": PRODUCT_STORAGE_DIR.is_dir(),
+            "file_count": len(files),
+            "sample_files": files[:10],
+        }
+
+    except OSError:
+        return {
+            "storage_root": str(STORAGE_ROOT),
+            "product_storage_dir": str(PRODUCT_STORAGE_DIR),
+            "directory_exists": False,
+            "file_count": 0,
+            "sample_files": [],
+            "error": "Unable to read product storage directory.",
+        }
