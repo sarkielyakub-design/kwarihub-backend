@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import os
@@ -14,13 +15,7 @@ from app.api.v1.api import api_router
 # ============================================================
 # REGISTER ALL SQLALCHEMY MODELS
 # ============================================================
-#
-# This imports all concrete models and registers them with:
-#
-#     app.database.base.Base.metadata
-#
-# Required for SQLAlchemy / Alembic model discovery.
-#
+
 import app.database.models  # noqa: F401
 
 
@@ -36,73 +31,48 @@ app = FastAPI(
 
 
 # ============================================================
-# STORAGE CONFIGURATION
-# ============================================================
-#
-# LOCAL:
-#
-#     STORAGE_ROOT=.
-#
-# Files:
-#
-#     ./storage/products/
-#
-#
-# RAILWAY:
-#
-# Create a Railway Volume mounted at:
-#
-#     /data
-#
-# Then set:
-#
-#     STORAGE_ROOT=/data
-#
-# Files:
-#
-#     /data/storage/products/
-#
+# PERSISTENT IMAGE STORAGE
 # ============================================================
 
 STORAGE_ROOT = Path(
-    os.getenv(
-        "STORAGE_ROOT",
-        ".",
-    )
+    os.getenv("STORAGE_ROOT", ".")
 ).resolve()
 
-
 STORAGE_DIR = STORAGE_ROOT / "storage"
-
-
 PRODUCT_STORAGE_DIR = STORAGE_DIR / "products"
 
-
-# ============================================================
-# CREATE STORAGE DIRECTORIES
-# ============================================================
-
-STORAGE_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
-PRODUCT_STORAGE_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
+STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+PRODUCT_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ============================================================
 # CORS
 # ============================================================
 
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://kwarihub.com",
+    "https://www.kwarihub.com",
+]
+
+# Optional additional origins can be configured in Railway:
+# CORS_ORIGINS=https://your-preview.vercel.app,https://example.com
+extra_origins = os.getenv("CORS_ORIGINS", "")
+
+ALLOWED_ORIGINS.extend(
+    origin.strip().rstrip("/")
+    for origin in extra_origins.split(",")
+    if origin.strip()
+)
+
+# Remove duplicates while preserving order.
+ALLOWED_ORIGINS = list(dict.fromkeys(ALLOWED_ORIGINS))
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -110,37 +80,28 @@ app.add_middleware(
 
 
 # ============================================================
-# STATIC FILES
+# PUBLIC STATIC FILES
 # ============================================================
 #
-# URL:
+# Local:
+#   STORAGE_ROOT=.
 #
-#     /storage/...
-#
-# maps to:
-#
-#     STORAGE_ROOT/storage/...
+# Railway:
+#   Attach a persistent Volume mounted at /data
+#   STORAGE_ROOT=/data
 #
 # Example:
+#   /storage/products/example.webp
 #
-#     /storage/products/example.jpg
-#
-# maps to:
-#
-#     /data/storage/products/example.jpg
-#
-# on Railway when STORAGE_ROOT=/data.
-#
-# FastAPI's StaticFiles serves files from the configured
-# directory under the mounted URL path.
+# Public URL:
+#   https://kwarihub-backend-production-ea77.up.railway.app/
+#       storage/products/example.webp
 #
 # ============================================================
 
 app.mount(
     "/storage",
-    StaticFiles(
-        directory=str(STORAGE_DIR),
-    ),
+    StaticFiles(directory=str(STORAGE_DIR)),
     name="storage",
 )
 
