@@ -45,13 +45,19 @@ PRODUCT_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 # CORS
 # ============================================================
 
+# Production frontend domains and local development origins.
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
     "https://kwarihub.com",
     "https://www.kwarihub.com",
+    "https://kwarihubfrontend.vercel.app",
+    "https://kwarihubfrontend-i3vzru8lo-sarkielyakub-designs-projects.vercel.app",
 ]
 
+# Optional additional origins configured in Railway.
+# Example:
+# CORS_ORIGINS=https://preview-one.vercel.app,https://preview-two.vercel.app
 extra_origins = os.getenv("CORS_ORIGINS", "")
 
 ALLOWED_ORIGINS.extend(
@@ -60,6 +66,7 @@ ALLOWED_ORIGINS.extend(
     if origin.strip()
 )
 
+# Remove duplicates while preserving order.
 ALLOWED_ORIGINS = list(dict.fromkeys(ALLOWED_ORIGINS))
 
 app.add_middleware(
