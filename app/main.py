@@ -30,9 +30,7 @@ app = FastAPI(
 # STORAGE
 # ============================================================
 
-STORAGE_ROOT = Path(
-    os.getenv("STORAGE_ROOT", ".")
-).resolve()
+STORAGE_ROOT = Path(os.getenv("STORAGE_ROOT", ".")).resolve()
 
 STORAGE_DIR = STORAGE_ROOT / "storage"
 PRODUCT_STORAGE_DIR = STORAGE_DIR / "products"
@@ -42,32 +40,44 @@ PRODUCT_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ============================================================
-# CORS
+# CORS CONFIGURATION
 # ============================================================
 
-# Production frontend domains and local development origins.
-ALLOWED_ORIGINS = [
+DEFAULT_ALLOWED_ORIGINS = [
+    # Local development
     "http://localhost:3000",
     "http://localhost:5173",
+
+    # Custom production domains
     "https://kwarihub.com",
     "https://www.kwarihub.com",
+
+    # Vercel production frontend
     "https://kwarihubfrontend.vercel.app",
+
+    # Vercel deployment preview
     "https://kwarihubfrontend-i3vzru8lo-sarkielyakub-designs-projects.vercel.app",
 ]
 
-# Optional additional origins configured in Railway.
+# Add extra origins from Railway environment variables.
 # Example:
 # CORS_ORIGINS=https://preview-one.vercel.app,https://preview-two.vercel.app
+
 extra_origins = os.getenv("CORS_ORIGINS", "")
 
-ALLOWED_ORIGINS.extend(
+EXTRA_ALLOWED_ORIGINS = [
     origin.strip().rstrip("/")
     for origin in extra_origins.split(",")
     if origin.strip()
-)
+]
 
-# Remove duplicates while preserving order.
-ALLOWED_ORIGINS = list(dict.fromkeys(ALLOWED_ORIGINS))
+# Combine and deduplicate origins.
+ALLOWED_ORIGINS = list(
+    dict.fromkeys(
+        origin.rstrip("/")
+        for origin in DEFAULT_ALLOWED_ORIGINS + EXTRA_ALLOWED_ORIGINS
+    )
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -79,7 +89,7 @@ app.add_middleware(
 
 
 # ============================================================
-# STATIC FILES
+# STATIC FILE STORAGE
 # ============================================================
 
 app.mount(
@@ -93,14 +103,25 @@ app.mount(
 # API ROUTES
 # ============================================================
 
-app.include_router(api_router, prefix="/api/v1")
+# Public product endpoint:
+# GET /api/v1/products
+#
+# Public categories endpoint:
+# GET /api/v1/categories
+#
+# Authentication endpoints are registered through api_router.
+
+app.include_router(
+    api_router,
+    prefix="/api/v1",
+)
 
 
 # ============================================================
-# ROOT
+# ROOT ENDPOINT
 # ============================================================
 
-@app.get("/")
+@app.get("/", tags=["Health"])
 async def root():
     return {
         "application": settings.APP_NAME,
@@ -114,16 +135,18 @@ async def root():
 # HEALTH CHECK
 # ============================================================
 
-@app.get("/health")
+@app.get("/health", tags=["Health"])
 async def health():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+    }
 
 
 # ============================================================
 # STORAGE DIAGNOSTIC
 # ============================================================
 
-@app.get("/health/storage")
+@app.get("/health/storage", tags=["Health"])
 async def storage_health():
     try:
         files = [
