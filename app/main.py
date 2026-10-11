@@ -42,21 +42,44 @@ PRODUCT_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 # ============================================================
 # CORS CONFIGURATION
 # ============================================================
+
+# ============================================================
+# CORS
+# ============================================================
+
 DEFAULT_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
     "https://kwarihub.com",
     "https://www.kwarihub.com",
-
-    # Vercel production
     "https://kwarihubfrontend.vercel.app",
-
-    # Current Vercel preview shown in your screenshot
     "https://kwarihubfrontend-c7xtvxh0m-sarkielyakub-designs-projects.vercel.app",
-
-    # Existing preview
     "https://kwarihubfrontend-i3vzru8lo-sarkielyakub-designs-projects.vercel.app",
 ]
+
+extra_origins = os.getenv("CORS_ORIGINS", "")
+
+EXTRA_ALLOWED_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in extra_origins.split(",")
+    if origin.strip()
+]
+
+ALLOWED_ORIGINS = list(
+    dict.fromkeys(
+        origin.rstrip("/")
+        for origin in DEFAULT_ALLOWED_ORIGINS + EXTRA_ALLOWED_ORIGINS
+    )
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # ============================================================
 # STATIC FILE STORAGE
 # ============================================================
