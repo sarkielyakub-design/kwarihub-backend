@@ -1,3 +1,5 @@
+
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import List, Optional
@@ -60,6 +62,7 @@ class OrderResponse(BaseModel):
     # Order
     uuid: str
     order_number: str
+    created_at: Optional[datetime] = None
 
     # Pricing
     subtotal: Decimal
@@ -80,13 +83,9 @@ class OrderResponse(BaseModel):
     # ========================================================
 
     payment_reference: Optional[str] = None
-
     transaction_reference: Optional[str] = None
-
     checkout_url: Optional[str] = None
-
     amount: Optional[Decimal] = None
-
     currency: Optional[str] = None
 
 
@@ -103,7 +102,7 @@ class OrderListResponse(BaseModel):
     order_number: str
     total: Decimal
     status: OrderStatus
-    created_at: str
+    created_at: datetime
 
 
 # ============================================================
