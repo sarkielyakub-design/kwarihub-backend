@@ -1,7 +1,9 @@
+
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
 
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -9,26 +11,20 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-
 from app.modules.auth.models import RefreshToken
 from app.modules.auth.repository import (
     AuthRepository,
     RefreshTokenRepository,
 )
-
 from app.modules.auth.schemas import RegisterRequest
-
 from app.modules.otp.repository import OTPRepository
 from app.modules.otp.service import OTPService
-
 from app.modules.roles.association import user_roles
-
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 
 
 class AuthService:
-
     def __init__(
         self,
         auth_repo: AuthRepository,
@@ -47,65 +43,35 @@ class AuthService:
         buyer_role_id: int,
         vendor_role_id: int | None = None,
     ):
-        # ------------------------------------------------------
         # Check email
-        # ------------------------------------------------------
-
         if await self.repo.get_by_email(data.email):
-            raise ValueError(
-                "Email already exists"
-            )
+            raise ValueError("Email already exists")
 
-        # ------------------------------------------------------
         # Check username
-        # ------------------------------------------------------
-
         if await self.repo.get_by_username(data.username):
-            raise ValueError(
-                "Username already exists"
-            )
+            raise ValueError("Username already exists")
 
-        # ------------------------------------------------------
         # Check phone
-        # ------------------------------------------------------
-
         if await self.repo.get_by_phone(data.phone):
-            raise ValueError(
-                "Phone number already exists"
-            )
+            raise ValueError("Phone number already exists")
 
-        # ------------------------------------------------------
-        # Create user
-        #
-        # role_id remains Buyer for backward compatibility.
-        # Additional roles are stored in user_roles.
-        # ------------------------------------------------------
-
+        # Create user.
+        # When email verification is disabled, the account
+        # is immediately marked as verified.
         user = User(
             first_name=data.first_name,
             last_name=data.last_name,
             username=data.username,
             email=data.email,
             phone=data.phone,
-            password_hash=hash_password(
-                data.password
-            ),
+            password_hash=hash_password(data.password),
             role_id=buyer_role_id,
-            is_verified=False,
+            is_verified=not settings.EMAIL_VERIFICATION_REQUIRED,
         )
-
-        # ------------------------------------------------------
-        # Save user
-        # ------------------------------------------------------
 
         user = await self.repo.create(user)
 
-        # ------------------------------------------------------
-        # Assign Buyer role
-        #
-        # Every KwariHub account is a Buyer by default.
-        # ------------------------------------------------------
-
+        # Every account receives the Buyer role.
         await self.repo.db.execute(
             user_roles.insert().values(
                 user_id=user.id,
@@ -113,19 +79,8 @@ class AuthService:
             )
         )
 
-        # ------------------------------------------------------
-        # Assign Vendor role
-        #
-        # Vendor registration gives the user both:
-        #
-        # Buyer
-        # Vendor
-        #
-        # This allows the same account to shop and sell.
-        # ------------------------------------------------------
-
+        # Vendor accounts receive both Buyer and Vendor roles.
         if vendor_role_id is not None:
-
             await self.repo.db.execute(
                 user_roles.insert().values(
                     user_id=user.id,
@@ -133,29 +88,19 @@ class AuthService:
                 )
             )
 
-        # ------------------------------------------------------
-        # Commit role assignments
-        # ------------------------------------------------------
-
         await self.repo.db.commit()
 
-        # ------------------------------------------------------
-        # Generate email verification OTP
-        # ------------------------------------------------------
+        # Only generate email verification OTP when enabled.
+        if settings.EMAIL_VERIFICATION_REQUIRED:
+            otp_service = OTPService(
+                repo=OTPRepository(self.repo.db),
+                user_repo=UserRepository(self.repo.db),
+            )
 
-        otp_service = OTPService(
-            repo=OTPRepository(
-                self.repo.db
-            ),
-            user_repo=UserRepository(
-                self.repo.db
-            ),
-        )
-
-        await otp_service.generate(
-            user_id=user.id,
-            purpose="email_verification",
-        )
+            await otp_service.generate(
+                user_id=user.id,
+                purpose="email_verification",
+            )
 
         return user
 
@@ -168,9 +113,7 @@ class AuthService:
         email: str,
         password: str,
     ):
-        user = await self.repo.get_by_email(
-            email
-        )
+        user = await self.repo.get_by_email(email)
 
         if not user:
             raise HTTPException(
@@ -178,21 +121,23 @@ class AuthService:
                 detail="Invalid email or password",
             )
 
-        if not verify_password(
-            password,
-            user.password_hash,
-        ):
+        if not verify_password(password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password",
             )
 
-        if not user.is_verified:
+        # Email verification is enforced only when enabled.
+        if (
+            settings.EMAIL_VERIFICATION_REQUIRED
+            and not user.is_verified
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Please verify your email before logging in.",
             )
 
+        # Keep account activation checks enabled.
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -210,17 +155,12 @@ class AuthService:
         refresh = RefreshToken(
             token=refresh_token,
             user_id=user.id,
-            expires_at=(
-                datetime.utcnow()
-                + timedelta(days=30)
-            ),
+            expires_at=datetime.utcnow() + timedelta(days=30),
             device_name="Unknown Device",
             ip_address=None,
         )
 
-        await self.refresh_repo.create(
-            refresh
-        )
+        await self.refresh_repo.create(refresh)
 
         return {
             "access_token": access_token,
@@ -237,9 +177,7 @@ class AuthService:
         self,
         refresh_token: str,
     ):
-        payload = decode_access_token(
-            refresh_token
-        )
+        payload = decode_access_token(refresh_token)
 
         if not payload:
             raise HTTPException(
@@ -271,9 +209,7 @@ class AuthService:
         self,
         refresh_token: str,
     ):
-        token = await self.refresh_repo.get_by_token(
-            refresh_token
-        )
+        token = await self.refresh_repo.get_by_token(refresh_token)
 
         if not token:
             raise HTTPException(
@@ -281,9 +217,7 @@ class AuthService:
                 detail="Refresh token not found",
             )
 
-        await self.refresh_repo.revoke(
-            token
-        )
+        await self.refresh_repo.revoke(token)
 
         return {
             "success": True,
@@ -298,9 +232,7 @@ class AuthService:
         self,
         email: str,
     ):
-        user = await self.repo.get_by_email(
-            email
-        )
+        user = await self.repo.get_by_email(email)
 
         if not user:
             raise HTTPException(
@@ -309,12 +241,8 @@ class AuthService:
             )
 
         otp_service = OTPService(
-            repo=OTPRepository(
-                self.repo.db
-            ),
-            user_repo=UserRepository(
-                self.repo.db
-            ),
+            repo=OTPRepository(self.repo.db),
+            user_repo=UserRepository(self.repo.db),
         )
 
         await otp_service.generate(
@@ -340,9 +268,7 @@ class AuthService:
         otp: str,
         password: str,
     ):
-        user = await self.repo.get_by_email(
-            email
-        )
+        user = await self.repo.get_by_email(email)
 
         if not user:
             raise HTTPException(
@@ -351,20 +277,12 @@ class AuthService:
             )
 
         otp_service = OTPService(
-            repo=OTPRepository(
-                self.repo.db
-            ),
-            user_repo=UserRepository(
-                self.repo.db
-            ),
+            repo=OTPRepository(self.repo.db),
+            user_repo=UserRepository(self.repo.db),
         )
 
-        # ------------------------------------------------------
-        # Verify password reset OTP.
-        # This only validates and consumes the OTP.
-        # It does not verify the user's email.
-        # ------------------------------------------------------
-
+        # Validate and consume the password-reset OTP.
+        # This does not change the email verification status.
         await otp_service.verify(
             user_id=user.id,
             code=otp,
@@ -372,15 +290,9 @@ class AuthService:
             update_user_verification=False,
         )
 
-        user.password_hash = hash_password(
-            password
-        )
+        user.password_hash = hash_password(password)
 
-        await UserRepository(
-            self.repo.db
-        ).change_password(
-            user
-        )
+        await UserRepository(self.repo.db).change_password(user)
 
         return {
             "success": True,
@@ -418,15 +330,9 @@ class AuthService:
                 ),
             )
 
-        user.password_hash = hash_password(
-            new_password
-        )
+        user.password_hash = hash_password(new_password)
 
-        await UserRepository(
-            self.repo.db
-        ).change_password(
-            user
-        )
+        await UserRepository(self.repo.db).change_password(user)
 
         return {
             "success": True,
