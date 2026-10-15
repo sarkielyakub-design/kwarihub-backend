@@ -13,25 +13,27 @@ from app.modules.categories.schemas import (
 
 
 class CategoryService:
-
-    def __init__(
-        self,
-        repo: CategoryRepository,
-    ):
+    def __init__(self, repo: CategoryRepository):
         self.repo = repo
 
-    # ============================================================
-    # CREATE
-    # ============================================================
+    @staticmethod
+    def _response(
+        category: Category,
+        product_count: int = 0,
+    ) -> CategoryResponse:
+        response = CategoryResponse.model_validate(category)
+        return response.model_copy(
+            update={"product_count": product_count}
+        )
+
+    async def _invalidate_cache(self) -> None:
+        await cache.delete(CacheKeys.CATEGORIES)
 
     async def create(
         self,
         request: CategoryCreateRequest,
-    ) -> Category:
-
-        existing = await self.repo.get_by_name(
-            request.name
-        )
+    ) -> CategoryResponse:
+        existing = await self.repo.get_by_name(request.name)
 
         if existing:
             raise HTTPException(
@@ -39,13 +41,8 @@ class CategoryService:
                 detail="Category already exists.",
             )
 
-        slug = slugify(
-            request.name
-        )
-
-        slug_exists = await self.repo.get_by_slug(
-            slug
-        )
+        slug = slugify(request.name)
+        slug_exists = await self.repo.get_by_slug(slug)
 
         if slug_exists:
             raise HTTPException(
@@ -53,26 +50,14 @@ class CategoryService:
                 detail="Category slug already exists.",
             )
 
-        # --------------------------------------------------------
-        # PARENT
-        # --------------------------------------------------------
-
         if request.parent_id is not None:
-
-            parent = await self.repo.db.get(
-                Category,
-                request.parent_id,
-            )
+            parent = await self.repo.get_by_id(request.parent_id)
 
             if not parent or parent.is_deleted:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Parent category not found.",
                 )
-
-        # --------------------------------------------------------
-        # CREATE
-        # --------------------------------------------------------
 
         category = Category(
             name=request.name,
@@ -84,78 +69,45 @@ class CategoryService:
             is_featured=request.is_featured,
         )
 
-        category = await self.repo.create(
-            category
-        )
+        category = await self.repo.create(category)
+        await self._invalidate_cache()
 
-        # --------------------------------------------------------
-        # INVALIDATE CACHE
-        # --------------------------------------------------------
+        return self._response(category)
 
-        await cache.delete(
-            CacheKeys.CATEGORIES
-        )
-
-        return category
-
-    # ============================================================
-    # GET ALL
-    # ============================================================
-
-    async def get_all(
-        self,
-    ) -> list[CategoryResponse]:
-
-        # --------------------------------------------------------
-        # REDIS
-        # --------------------------------------------------------
-
-        cached = await cache.get(
-            CacheKeys.CATEGORIES
-        )
+    async def get_all(self) -> list[CategoryResponse]:
+        cached = await cache.get(CacheKeys.CATEGORIES)
 
         if cached is not None:
-
             try:
+                if not isinstance(cached, list):
+                    raise ValueError("Invalid categories cache.")
+
+                # Older cached responses did not contain product_count.
+                if any(
+                    not isinstance(item, dict)
+                    or "product_count" not in item
+                    for item in cached
+                ):
+                    raise ValueError(
+                        "Cached categories are missing product counts."
+                    )
 
                 return [
-                    CategoryResponse.model_validate(
-                        item
-                    )
+                    CategoryResponse.model_validate(item)
                     for item in cached
                 ]
 
-            except (
-                TypeError,
-                ValueError,
-            ):
-                # Ignore bad cache and rebuild it.
-                await cache.delete(
-                    CacheKeys.CATEGORIES
-                )
+            except (TypeError, ValueError):
+                await cache.delete(CacheKeys.CATEGORIES)
 
-        # --------------------------------------------------------
-        # DATABASE
-        # --------------------------------------------------------
-
-        categories = await self.repo.get_all()
-
-        # --------------------------------------------------------
-        # ORM → RESPONSE DATA
-        # --------------------------------------------------------
+        rows = await self.repo.get_all_with_product_counts()
 
         response_data = [
-            CategoryResponse.model_validate(
-                category
-            ).model_dump(
+            self._response(category, product_count).model_dump(
                 mode="json"
             )
-            for category in categories
+            for category, product_count in rows
         ]
-
-        # --------------------------------------------------------
-        # REDIS
-        # --------------------------------------------------------
 
         await cache.set(
             CacheKeys.CATEGORIES,
@@ -163,29 +115,16 @@ class CategoryService:
             ttl=600,
         )
 
-        # --------------------------------------------------------
-        # RETURN
-        # --------------------------------------------------------
-
         return [
-            CategoryResponse.model_validate(
-                item
-            )
+            CategoryResponse.model_validate(item)
             for item in response_data
         ]
-
-    # ============================================================
-    # GET BY UUID
-    # ============================================================
 
     async def get_by_uuid(
         self,
         uuid: str,
-    ) -> Category:
-
-        category = await self.repo.get_by_uuid(
-            uuid
-        )
+    ) -> CategoryResponse:
+        category = await self.repo.get_by_uuid(uuid)
 
         if not category:
             raise HTTPException(
@@ -193,21 +132,18 @@ class CategoryService:
                 detail="Category not found.",
             )
 
-        return category
+        product_count = await self.repo.get_product_count(
+            category.id
+        )
 
-    # ============================================================
-    # UPDATE
-    # ============================================================
+        return self._response(category, product_count)
 
     async def update(
         self,
         uuid: str,
         request: CategoryUpdateRequest,
-    ):
-
-        category = await self.repo.get_by_uuid(
-            uuid
-        )
+    ) -> CategoryResponse:
+        category = await self.repo.get_by_uuid(uuid)
 
         if not category:
             raise HTTPException(
@@ -215,74 +151,43 @@ class CategoryService:
                 detail="Category not found.",
             )
 
-        data = request.model_dump(
-            exclude_unset=True
-        )
+        data = request.model_dump(exclude_unset=True)
 
-        # --------------------------------------------------------
-        # NAME
-        # --------------------------------------------------------
+        if "name" in data and data["name"] is not None:
+            existing = await self.repo.get_by_name(data["name"])
 
-        if "name" in data:
-
-            existing = await self.repo.get_by_name(
-                data["name"]
-            )
-
-            if (
-                existing
-                and existing.id != category.id
-            ):
+            if existing and existing.id != category.id:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Category name already exists.",
                 )
 
-            category.name = data["name"]
+            new_slug = slugify(data["name"])
+            slug_existing = await self.repo.get_by_slug(new_slug)
 
-            category.slug = slugify(
-                data["name"]
-            )
-
-        # --------------------------------------------------------
-        # OTHER FIELDS
-        # --------------------------------------------------------
-
-        for key, value in data.items():
-
-            if key != "name":
-                setattr(
-                    category,
-                    key,
-                    value,
+            if slug_existing and slug_existing.id != category.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Category slug already exists.",
                 )
 
-        category = await self.repo.update(
-            category
+            category.name = data.pop("name")
+            category.slug = new_slug
+
+        for key, value in data.items():
+            setattr(category, key, value)
+
+        category = await self.repo.update(category)
+        await self._invalidate_cache()
+
+        product_count = await self.repo.get_product_count(
+            category.id
         )
 
-        # --------------------------------------------------------
-        # INVALIDATE CACHE
-        # --------------------------------------------------------
+        return self._response(category, product_count)
 
-        await cache.delete(
-            CacheKeys.CATEGORIES
-        )
-
-        return category
-
-    # ============================================================
-    # DELETE
-    # ============================================================
-
-    async def delete(
-        self,
-        uuid: str,
-    ) -> bool:
-
-        category = await self.repo.get_by_uuid(
-            uuid
-        )
+    async def delete(self, uuid: str) -> bool:
+        category = await self.repo.get_by_uuid(uuid)
 
         if not category:
             raise HTTPException(
@@ -290,16 +195,7 @@ class CategoryService:
                 detail="Category not found.",
             )
 
-        await self.repo.delete(
-            category
-        )
-
-        # --------------------------------------------------------
-        # INVALIDATE CACHE
-        # --------------------------------------------------------
-
-        await cache.delete(
-            CacheKeys.CATEGORIES
-        )
+        await self.repo.delete(category)
+        await self._invalidate_cache()
 
         return True

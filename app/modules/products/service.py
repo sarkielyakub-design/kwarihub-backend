@@ -290,6 +290,7 @@ class ProductService:
         seller_id: int,
     ) -> None:
         await cache.delete(CacheKeys.PRODUCTS)
+        await cache.delete(CacheKeys.CATEGORIES)
         await cache.delete_pattern("product:*")
         await cache.delete(f"product:{uuid}")
         await cache.delete(f"seller:{seller_id}:products")
