@@ -1,16 +1,19 @@
-from datetime import datetime
-from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreateBankAccountRequest(BaseModel):
-    bank_code: str
-    account_number: str
+    bank_code: str = Field(..., min_length=1, max_length=20)
+    account_number: str = Field(
+        ...,
+        pattern=r"^\d{10}$",
+        description="10-digit Nigerian bank account number",
+    )
 
 
-class UpdateBankAccountRequest(BaseModel):
-    is_default: bool = False
+class BankOptionResponse(BaseModel):
+    name: str
+    code: str
 
 
 class ResolveAccountResponse(BaseModel):
@@ -18,35 +21,3 @@ class ResolveAccountResponse(BaseModel):
     bank_name: str
     account_number: str
     bank_code: str
-
-
-class BankAccountResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    uuid: str
-
-    bank_code: str
-
-    bank_name: str
-
-    account_name: str
-
-    account_number: str
-
-    is_default: bool
-
-    is_verified: bool
-
-    created_at: datetime
-
-
-class BankAccountListResponse(BaseModel):
-    accounts: list[BankAccountResponse]
-
-
-class VerifyBankAccountResponse(BaseModel):
-    success: bool
-
-    message: str
-
-    account: Optional[BankAccountResponse] = None
