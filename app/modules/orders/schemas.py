@@ -7,10 +7,6 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
-# ============================================================
-# ORDER STATUS
-# ============================================================
-
 class OrderStatus(str, Enum):
     PENDING = "PENDING"
     PAID = "PAID"
@@ -20,27 +16,23 @@ class OrderStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
-# ============================================================
-# CHECKOUT REQUEST
-# ============================================================
-
 class CheckoutRequest(BaseModel):
-    shipping_address: str = Field(
-        ...,
-        min_length=10,
+    shipping_address: str = Field(..., min_length=10)
+    redirect_url: str
+    coupon_code: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        max_length=60,
     )
 
-    redirect_url: str
+    def normalized_coupon_code(self) -> Optional[str]:
+        if not self.coupon_code:
+            return None
+        return self.coupon_code.strip().upper() or None
 
-
-# ============================================================
-# ORDER ITEM RESPONSE
-# ============================================================
 
 class OrderItemResponse(BaseModel):
-    model_config = ConfigDict(
-        from_attributes=True,
-    )
+    model_config = ConfigDict(from_attributes=True)
 
     uuid: str
     product_name: str
@@ -50,37 +42,23 @@ class OrderItemResponse(BaseModel):
     total_price: Decimal
 
 
-# ============================================================
-# ORDER RESPONSE
-# ============================================================
-
 class OrderResponse(BaseModel):
-    model_config = ConfigDict(
-        from_attributes=True,
-    )
+    model_config = ConfigDict(from_attributes=True)
 
-    # Order
     uuid: str
     order_number: str
     created_at: Optional[datetime] = None
 
-    # Pricing
     subtotal: Decimal
+    discount_amount: Decimal = Decimal("0.00")
+    coupon_code: Optional[str] = None
+    promotion_id: Optional[int] = None
     shipping_fee: Decimal
     total: Decimal
 
-    # Status
     status: OrderStatus
-
-    # Shipping
     shipping_address: str
-
-    # Items
     items: List[OrderItemResponse]
-
-    # ========================================================
-    # PAYMENT
-    # ========================================================
 
     payment_reference: Optional[str] = None
     transaction_reference: Optional[str] = None
@@ -89,14 +67,8 @@ class OrderResponse(BaseModel):
     currency: Optional[str] = None
 
 
-# ============================================================
-# ORDER LIST RESPONSE
-# ============================================================
-
 class OrderListResponse(BaseModel):
-    model_config = ConfigDict(
-        from_attributes=True,
-    )
+    model_config = ConfigDict(from_attributes=True)
 
     uuid: str
     order_number: str
@@ -105,17 +77,9 @@ class OrderListResponse(BaseModel):
     created_at: datetime
 
 
-# ============================================================
-# UPDATE ORDER STATUS
-# ============================================================
-
 class UpdateOrderStatusRequest(BaseModel):
     status: OrderStatus
 
-
-# ============================================================
-# GENERIC MESSAGE RESPONSE
-# ============================================================
 
 class MessageResponse(BaseModel):
     success: bool

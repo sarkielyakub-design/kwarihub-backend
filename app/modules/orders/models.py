@@ -1,3 +1,5 @@
+
+from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -47,18 +49,41 @@ class Order(BaseModel):
     # Pricing
     # ==========================
 
-    subtotal: Mapped[float] = mapped_column(
+    subtotal: Mapped[Decimal] = mapped_column(
         Numeric(12, 2),
         nullable=False,
     )
 
-    shipping_fee: Mapped[float] = mapped_column(
+    shipping_fee: Mapped[Decimal] = mapped_column(
         Numeric(12, 2),
-        default=0,
+        default=Decimal("0.00"),
         nullable=False,
     )
 
-    total: Mapped[float] = mapped_column(
+    # Discount applied by a promotion or coupon
+    discount_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        default=Decimal("0.00"),
+        server_default="0.00",
+        nullable=False,
+    )
+
+    # Coupon code applied to this order, if any
+    coupon_code: Mapped[str | None] = mapped_column(
+        String(60),
+        nullable=True,
+        index=True,
+    )
+
+    # Promotion responsible for the discount, if any
+    promotion_id: Mapped[int | None] = mapped_column(
+        ForeignKey("promotions.id"),
+        nullable=True,
+        index=True,
+    )
+
+    # Final payable amount after discount and shipping
+    total: Mapped[Decimal] = mapped_column(
         Numeric(12, 2),
         nullable=False,
     )

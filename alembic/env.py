@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.database.base_model import Base
 
 # Import models
+import app.database.models  # Register all SQLAlchemy models
 from app.modules.users.models import User
 from app.modules.roles.models import Role
 from app.modules.permissions.models import Permission
@@ -29,6 +30,9 @@ from app.modules.withdrawals.models import Withdrawal
 from app.modules.bank_accounts.models import BankAccount
 from app.modules.settings.models import MarketplaceSettings
 from app.modules.audit_logs.models import AuditLog
+# Promotions
+from app.modules.promotions.models import Promotion
+from app.modules.promotions.redemption_model import PromotionRedemption
 
 
 config = context.config

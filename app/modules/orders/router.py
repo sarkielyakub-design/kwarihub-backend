@@ -104,16 +104,3 @@ async def get_order(
 # UPDATE ORDER STATUS
 # ============================================================
 
-@router.patch(
-    "/{order_uuid}/status",
-    response_model=OrderResponse,
-)
-async def update_status(
-    order_uuid: str,
-    request: UpdateOrderStatusRequest,
-    service: OrderService = Depends(get_service),
-):
-    return await service.update_status(
-        order_uuid,
-        request.status,
-    )

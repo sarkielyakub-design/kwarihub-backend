@@ -27,3 +27,4 @@ from app.modules.wallet.models import Wallet
 from app.modules.wallet.models import WalletTransaction
 from app.modules.wishlist.models import Wishlist
 from app.modules.withdrawals.models import Withdrawal
+from app.modules.promotions.models import Promotion

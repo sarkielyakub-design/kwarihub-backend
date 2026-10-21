@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,9 +34,7 @@ async def orders(
     current_user: User = Depends(get_current_user),
     service: SellerOrderService = Depends(get_service),
 ):
-    return await service.list_orders(
-        current_user.id,
-    )
+    return await service.list_orders(current_user.id)
 
 
 @router.get(

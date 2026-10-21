@@ -1,17 +1,17 @@
+
 from fastapi import HTTPException
 
+from app.modules.orders.models import OrderStatus
 from app.modules.seller_orders.repository import SellerOrderRepository
 from app.modules.seller_orders.schemas import (
     SellerOrderItemResponse,
     SellerOrderResponse,
+    SellerOrderStatus,
 )
 
 
 class SellerOrderService:
-    def __init__(
-        self,
-        repo: SellerOrderRepository,
-    ):
+    def __init__(self, repo: SellerOrderRepository):
         self.repo = repo
 
     @staticmethod
@@ -28,7 +28,10 @@ class SellerOrderService:
         ).strip()
 
         if not buyer_name:
-            buyer_name = getattr(buyer, "username", None) or "Unknown Buyer"
+            buyer_name = (
+                getattr(buyer, "username", None)
+                or "Unknown Buyer"
+            )
 
         items = [
             SellerOrderItemResponse.model_validate(item)
@@ -40,31 +43,17 @@ class SellerOrderService:
             order_number=order.order_number,
             buyer_name=buyer_name,
             shipping_address=order.shipping_address,
-            status=order.status,
+            status=SellerOrderStatus(order.status.value),
             created_at=order.created_at,
             items=items,
         )
 
-    async def list_orders(
-        self,
-        seller_id: int,
-    ):
+    async def list_orders(self, seller_id: int):
         orders = await self.repo.get_orders(seller_id)
+        return [self._to_response(order) for order in orders]
 
-        return [
-            self._to_response(order)
-            for order in orders
-        ]
-
-    async def get_order(
-        self,
-        seller_id: int,
-        order_uuid: str,
-    ):
-        order = await self.repo.get_order(
-            order_uuid,
-            seller_id,
-        )
+    async def get_order(self, seller_id: int, order_uuid: str):
+        order = await self.repo.get_order(order_uuid, seller_id)
 
         if not order:
             raise HTTPException(
@@ -78,12 +67,9 @@ class SellerOrderService:
         self,
         seller_id: int,
         order_uuid: str,
-        status,
+        status: SellerOrderStatus,
     ):
-        order = await self.repo.get_order(
-            order_uuid,
-            seller_id,
-        )
+        order = await self.repo.get_order(order_uuid, seller_id)
 
         if not order:
             raise HTTPException(
@@ -91,8 +77,39 @@ class SellerOrderService:
                 detail="Order not found.",
             )
 
-        order.status = status
+        current_status = OrderStatus(order.status.value)
 
-        updated_order = await self.repo.update(order)
+        # Sellers cannot mark an order as paid.
+        # Payment verification must handle that transition.
+        allowed_transitions = {
+            OrderStatus.PAID: {OrderStatus.PROCESSING},
+            OrderStatus.PROCESSING: {
+                OrderStatus.SHIPPED,
+                OrderStatus.CANCELLED,
+            },
+            OrderStatus.SHIPPED: {OrderStatus.DELIVERED},
+        }
+
+        requested_status = OrderStatus(status.value)
+
+        if requested_status not in allowed_transitions.get(
+            current_status, set()
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Cannot change order status from "
+                    f"{current_status.value} to "
+                    f"{requested_status.value}."
+                ),
+            )
+
+        order.status = requested_status
+
+        try:
+            updated_order = await self.repo.update(order)
+        except Exception:
+            await self.repo.db.rollback()
+            raise
 
         return self._to_response(updated_order)

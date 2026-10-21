@@ -7,6 +7,7 @@ from app.modules.products.router import router as products_router
 from app.modules.product_images.router import (
     router as product_images_router,
 )
+from app.modules.promotions.router import router as promotions_router
 from app.modules.dashboard.router import (
     router as dashboard_router,
 )
@@ -81,7 +82,7 @@ api_router.include_router(
     users_router,
 )
 
-
+api_router.include_router(promotions_router)
 # ============================================================
 # CATEGORIES
 # ============================================================
