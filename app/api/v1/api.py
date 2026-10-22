@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter
 
 from app.modules.auth.router import router as auth_router
@@ -69,207 +70,161 @@ api_router = APIRouter()
 # AUTHENTICATION
 # ============================================================
 
-api_router.include_router(
-    auth_router,
-)
+api_router.include_router(auth_router)
 
 
 # ============================================================
 # USERS
 # ============================================================
 
-api_router.include_router(
-    users_router,
-)
+api_router.include_router(users_router)
 
-api_router.include_router(promotions_router)
+
 # ============================================================
 # CATEGORIES
 # ============================================================
 
-api_router.include_router(
-    category_router,
-)
+api_router.include_router(category_router)
 
 
 # ============================================================
 # PRODUCTS
 # ============================================================
 
-api_router.include_router(
-    products_router,
-)
+api_router.include_router(products_router)
 
 
 # ============================================================
 # PRODUCT IMAGES
 # ============================================================
 
-api_router.include_router(
-    product_images_router,
-)
+api_router.include_router(product_images_router)
 
 
 # ============================================================
 # PRODUCT VARIANTS
 # ============================================================
 
-api_router.include_router(
-    product_variants_router,
-)
+api_router.include_router(product_variants_router)
+
+
+# ============================================================
+# PROMOTIONS
+# ============================================================
+
+api_router.include_router(promotions_router)
 
 
 # ============================================================
 # WISHLIST
 # ============================================================
 
-api_router.include_router(
-    wishlist_router,
-)
+api_router.include_router(wishlist_router)
 
 
 # ============================================================
 # CART
 # ============================================================
 
-api_router.include_router(
-    cart_router,
-)
+api_router.include_router(cart_router)
 
 
 # ============================================================
 # ORDERS
 # ============================================================
 
-api_router.include_router(
-    orders_router,
-)
+api_router.include_router(orders_router)
 
 
 # ============================================================
 # PAYMENTS
 # ============================================================
 
-api_router.include_router(
-    payments_router,
-)
+api_router.include_router(payments_router)
 
 
 # ============================================================
 # SELLER / VENDOR
 # ============================================================
 
-api_router.include_router(
-    seller_router,
-)
-
-api_router.include_router(
-    seller_orders_router,
-)
-
-api_router.include_router(
-    vendor_router,
-)
+api_router.include_router(seller_router)
+api_router.include_router(seller_orders_router)
+api_router.include_router(vendor_router)
 
 
 # ============================================================
 # INVENTORY
 # ============================================================
 
-api_router.include_router(
-    inventory_router,
-)
+api_router.include_router(inventory_router)
 
 
 # ============================================================
 # REVIEWS
 # ============================================================
 
-api_router.include_router(
-    reviews_router,
-)
+api_router.include_router(reviews_router)
 
 
 # ============================================================
 # NOTIFICATIONS
 # ============================================================
 
-api_router.include_router(
-    notifications_router,
-)
+api_router.include_router(notifications_router)
 
 
 # ============================================================
 # WALLET
 # ============================================================
 
-api_router.include_router(
-    wallet_router,
-)
+api_router.include_router(wallet_router)
 
 
 # ============================================================
 # WITHDRAWALS
 # ============================================================
 
-api_router.include_router(
-    withdrawals_router,
-)
+api_router.include_router(withdrawals_router)
 
 
 # ============================================================
 # ADMIN
 # ============================================================
 
-api_router.include_router(
-    admin_router,
-)
-
-api_router.include_router(
-    admin_vendors_router,
-)
+api_router.include_router(admin_router)
+api_router.include_router(admin_vendors_router)
 
 
 # ============================================================
 # BANK ACCOUNTS
 # ============================================================
 
-api_router.include_router(
-    bank_accounts_router,
-)
+api_router.include_router(bank_accounts_router)
 
 
 # ============================================================
 # SETTINGS
 # ============================================================
 
-api_router.include_router(
-    settings_router,
-)
+api_router.include_router(settings_router)
 
 
 # ============================================================
 # AUDIT LOGS
 # ============================================================
 
-api_router.include_router(
-    audit_logs_router,
-)
+api_router.include_router(audit_logs_router)
 
 
 # ============================================================
 # OTP
 # ============================================================
 
-api_router.include_router(
-    otp_router,
-)
+api_router.include_router(otp_router)
 
 
 # ============================================================
 # DASHBOARD
 # ============================================================
 
-api_router.include_router(
-    dashboard_router,
-)
+api_router.include_router(dashboard_router)
