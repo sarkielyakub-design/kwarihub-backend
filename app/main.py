@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -13,6 +14,9 @@ from app.api.v1.api import api_router
 
 # Register SQLAlchemy models for Alembic discovery.
 import app.database.models  # noqa: F401
+
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -41,10 +45,6 @@ PRODUCT_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
 # CORS CONFIGURATION
-# ============================================================
-
-# ============================================================
-# CORS
 # ============================================================
 
 DEFAULT_ALLOWED_ORIGINS = [
@@ -80,6 +80,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # ============================================================
 # STATIC FILE STORAGE
 # ============================================================
@@ -94,14 +95,6 @@ app.mount(
 # ============================================================
 # API ROUTES
 # ============================================================
-
-# Public product endpoint:
-# GET /api/v1/products
-#
-# Public categories endpoint:
-# GET /api/v1/categories
-#
-# Authentication endpoints are registered through api_router.
 
 app.include_router(
     api_router,
@@ -156,6 +149,8 @@ async def storage_health():
         }
 
     except OSError:
+        logger.exception("Unable to inspect product storage")
+
         return {
             "storage_root": str(STORAGE_ROOT),
             "product_storage_dir": str(PRODUCT_STORAGE_DIR),
@@ -164,3 +159,31 @@ async def storage_health():
             "sample_files": [],
             "error": "Unable to read product storage directory.",
         }
+
+
+# ============================================================
+# PROMOTIONS ROUTE DIAGNOSTIC
+# ============================================================
+
+@app.on_event("startup")
+async def log_registered_promotion_routes():
+    promotion_routes = [
+        {
+            "path": route.path,
+            "methods": sorted(route.methods or []),
+        }
+        for route in app.routes
+        if hasattr(route, "path")
+        and "promotion" in route.path.lower()
+    ]
+
+    if promotion_routes:
+        logger.info(
+            "Registered promotion routes: %s",
+            promotion_routes,
+        )
+    else:
+        logger.error(
+            "No promotion routes registered. "
+            "Check app.api.v1.api and the promotions router imports."
+        )
